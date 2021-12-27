@@ -1,0 +1,16 @@
+<div class="container">
+  <div class="row">
+    <div class="col-xs-12">
+      <hr>
+      <button class="btn btn-primary" (click)="toggleMessage()">Display Details</button>
+      <hr>
+      <p *ngIf="show === true">Secret Password = helloworld</p>
+      <div *ngFor="let logItem of index"
+        [ngStyle]="{backgroundColor: logItem >= 5 ? 'blue' : 'transparent'}"
+        [ngClass]="{'white-text' : logItem >= 5 }"
+      >
+        {{ logItem }}
+      </div>
+    </div>
+  </div>
+</div>
