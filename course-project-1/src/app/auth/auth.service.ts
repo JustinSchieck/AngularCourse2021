@@ -4,8 +4,10 @@ import { catchError, tap } from 'rxjs/operators';
 import { BehaviorSubject, throwError } from 'rxjs';
 import { User } from './user.model';
 import { Router } from '@angular/router';
-import { StringMap } from '@angular/compiler/src/compiler_facade_interface';
-
+import { environment } from 'src/environments/environment';
+import { Store } from '@ngrx/store';
+import * as fromApp from '../store/app.reducer';
+import * as authActions from './store/auth.actions';
 export interface AuthResponseData {
   kind: string;
   idToken: string;
@@ -18,16 +20,19 @@ export interface AuthResponseData {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private api_key = 'AIzaSyBrAnoM_aL5N14PNWGcZBI2_mMi0fm81XY';
-  user = new BehaviorSubject<User>(null);
+  // user = new BehaviorSubject<User>(null);
   private tokenExpTimer: any;
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(
+    private http: HttpClient,
+    private router: Router,
+    private store: Store<fromApp.AppState>
+  ) {}
 
   signUp(email: string, password: string) {
     return this.http
       .post<AuthResponseData>(
-        `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${this.api_key}`,
+        `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${environment.FB_API_KEY}`,
         {
           email: email,
           password: password,
@@ -66,7 +71,14 @@ export class AuthService {
     );
 
     if (loadedUser.token) {
-      this.user.next(loadedUser);
+      this.store.dispatch(
+        new authActions.Login({
+          email: loadedUser.email,
+          userId: loadedUser.id,
+          token: loadedUser.token,
+          expDate: new Date(userData._tokenExpDate),
+        })
+      );
       const expDuration =
         new Date(userData._tokenExpDate).getTime() - new Date().getTime();
       this.autoLogout(expDuration);
@@ -76,7 +88,7 @@ export class AuthService {
   login(email: string, password: string) {
     return this.http
       .post<AuthResponseData>(
-        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${this.api_key}`,
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${environment.FB_API_KEY}`,
         {
           email: email,
           password: password,
@@ -103,7 +115,7 @@ export class AuthService {
   }
 
   logout() {
-    this.user.next(null);
+    this.store.dispatch(new authActions.Logout());
     this.router.navigate(['/auth']);
     localStorage.removeItem('userData');
     if (this.tokenExpTimer) {
@@ -119,7 +131,14 @@ export class AuthService {
   ) {
     const expDate = new Date(new Date().getTime() + expiresIn * 1000);
     const user = new User(email, userId, token, expDate);
-    this.user.next(user);
+    this.store.dispatch(
+      new authActions.Login({
+        email: email,
+        userId: userId,
+        token: token,
+        expDate: expDate,
+      })
+    );
     this.autoLogout(expiresIn * 1000);
     localStorage.setItem('userData', JSON.stringify(user));
   }
